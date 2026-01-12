@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  array-balancer:
+    image: ghcr.io/rayce185/unraid-array-balancer:latest
+    container_name: array-balancer
+    ports:
+      - "28787:8080"
+    volumes:
+      # Mount your array disks (add all your disks)
+      # The container auto-detects mounted disks at /mnt/disk*
+      - /mnt/disk1:/mnt/disk1
+      - /mnt/disk2:/mnt/disk2
+      - /mnt/disk3:/mnt/disk3
+      # Add more disks as needed...
+      # - /mnt/disk4:/mnt/disk4
+      # - /mnt/disk5:/mnt/disk5
+      # ... up to disk30
+      
+      # Share configs (read-only) - REQUIRED
+      - /boot/config/shares:/config/shares:ro
+      
+      # Mover detection (read-only) - REQUIRED
+      - /var/run:/var/run:ro
+      
+      # Dynamix config for mover schedule (read-only)
+      - /boot/config/plugins/dynamix:/config/dynamix:ro
+      
+      # unRAID scripts for mover trigger (read-only)
+      - /usr/local/sbin:/usr/local/sbin:ro
+      
+      # Persistent data - REQUIRED
+      - /mnt/user/appdata/array-balancer:/app/data
+    environment:
+      # User/Group (unRAID defaults)
+      - PUID=99
+      - PGID=100
+      
+      # Timezone
+      - TZ=Europe/Zurich
+      
+      # Authentication - CHANGE THESE!
+      - AUTH_ENABLED=true
+      - AUTH_USERNAME=admin
+      - AUTH_PASSWORD=changeme
+      
+      # Operation settings
+      - LOG_LEVEL=info
+      - DRY_RUN=true
+      - UNDO_RETENTION_HOURS=24
+      - STRICT_PERMISSIONS=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped

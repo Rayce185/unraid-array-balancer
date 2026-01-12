@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Development container with hot reload
+  dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: array-balancer-dev
+    ports:
+      - "28787:8080"   # Backend API
+      - "5173:5173"    # Frontend dev server
+    volumes:
+      # Mount source code for hot reload
+      - ../backend:/app/backend
+      - ../frontend:/app/frontend
+      - /app/frontend/node_modules  # Exclude node_modules
+      
+      # Mock unRAID environment
+      - ./mock-unraid/mnt:/mnt:rw
+      - ./mock-unraid/config:/config:ro
+      - ./mock-unraid/var/run:/var/run:rw
+      
+      # Persistent dev data
+      - dev-data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEBUG=true
+      - LOG_LEVEL=debug
+      - AUTH_ENABLED=false
+      - DRY_RUN=true
+      - STRICT_PERMISSIONS=false
+    command: >
+      sh -c "
+        cd /app/backend && pip install -e '.[dev]' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload &
+        cd /app/frontend && npm install && npm run dev -- --host 0.0.0.0
+      "
+
+  # Mock unRAID setup (run once to create test data)
+  mock-setup:
+    image: alpine
+    volumes:
+      - ./mock-unraid:/mock
+    command: >
+      sh -c "
+        echo 'Setting up mock unRAID environment...'
+        
+        # Create mock disks
+        for i in 1 2 3 4 5; do
+          mkdir -p /mock/mnt/disk$$i/media/movies
+          mkdir -p /mock/mnt/disk$$i/media/tv
+          mkdir -p /mock/mnt/disk$$i/media/music
+        done
+        
+        # Create some test files
+        for i in 1 2 3 4 5; do
+          for j in 1 2 3 4 5; do
+            dd if=/dev/urandom of=/mock/mnt/disk$$i/media/movies/movie_$$j.mkv bs=1M count=100 2>/dev/null
+            dd if=/dev/urandom of=/mock/mnt/disk$$i/media/tv/episode_$$j.mkv bs=1M count=50 2>/dev/null
+          done
+        done
+        
+        # Create mock config
+        mkdir -p /mock/config/shares
+        echo 'shareInclude=\"disk1,disk2,disk3,disk4,disk5\"' > /mock/config/shares/media.cfg
+        
+        mkdir -p /mock/config/dynamix
+        echo 'moverSchedule=\"3\"' > /mock/config/dynamix/dynamix.cfg
+        
+        mkdir -p /mock/var/run
+        
+        echo 'Mock environment ready!'
+      "
+
+volumes:
+  dev-data:
