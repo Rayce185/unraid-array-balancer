@@ -7,7 +7,6 @@
 
 A disk balancing tool for unRAID 7+ arrays. Balance disk usage by percentage across your array drives with a modern web interface, smart suggestions, and safety-first design.
 
-![Dashboard Preview](docs/images/dashboard-preview.png)
 
 ---
 
